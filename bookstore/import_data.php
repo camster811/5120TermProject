@@ -17,20 +17,22 @@ if ($conn->connect_error) {
 function importCSV($conn, $tableName, $csvFile) {
     echo "Importing data into $tableName from $csvFile...<br>";
     
-    // Open the CSV file
     if (($handle = fopen($csvFile, "r")) !== FALSE) {
-        // Read the header row
         $header = fgetcsv($handle, 1000, ",");
-        
-        // Prepare columns for SQL
         $columns = implode(", ", $header);
-        
-        // Read data rows
         $rowCount = 0;
+
         while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-            // Prepare values for SQL
             $values = array();
-            foreach ($data as $value) {
+            foreach ($data as $key => $value) {
+                // Convert date format if necessary
+                if (in_array($header[$key], array('OrderDate', 'ShippedDate')) && !empty($value)) {
+                    $date = DateTime::createFromFormat('m/d/Y', $value);
+                    if ($date) {
+                        $value = $date->format('Y-m-d'); // Convert to MySQL DATE format
+                    }
+                }
+
                 if ($value === "NULL") {
                     $values[] = "NULL";
                 } else {
@@ -38,11 +40,10 @@ function importCSV($conn, $tableName, $csvFile) {
                 }
             }
             $valueString = implode(", ", $values);
+
+            // Escape table name with backticks
+            $sql = "INSERT INTO `$tableName` ($columns) VALUES ($valueString)";
             
-            // Create SQL query
-            $sql = "INSERT INTO $tableName ($columns) VALUES ($valueString)";
-            
-            // Execute query
             if ($conn->query($sql) === TRUE) {
                 $rowCount++;
             } else {
@@ -58,14 +59,14 @@ function importCSV($conn, $tableName, $csvFile) {
 
 // Import data from CSV files
 // Import in order to respect foreign key constraints
-importCSV($conn, "Subject", "../5120TermProject/data/db_subject.csv");
-importCSV($conn, "Supplier", "../5120TermProject/data/db_supplier.csv");
-importCSV($conn, "Book", "../5120TermProject/data/db_book.csv");
-importCSV($conn, "Shipper", "../5120TermProject/data/db_shipper.csv");
-importCSV($conn, "Customer", "../5120TermProject/data/db_customer.csv");
-importCSV($conn, "Employee", "../5120TermProject/data/db_employee.csv");
-importCSV($conn, "Order", "../5120TermProject/data/db_order.csv");
-importCSV($conn, "OrderDetail", "../5120TermProject/data/db_order_detail.csv");
+importCSV($conn, "Subject", "data/db_subject.csv");
+importCSV($conn, "Supplier", "data/db_supplier.csv");
+importCSV($conn, "Book", "data/db_book.csv");
+importCSV($conn, "Shipper", "data/db_shipper.csv");
+importCSV($conn, "Customer", "data/db_customer.csv");
+importCSV($conn, "Employee", "data/db_employee.csv");
+importCSV($conn, "Order", "data/db_order.csv");
+importCSV($conn, "OrderDetail", "data/db_order_detail.csv");
 
 echo "Data import completed!";
 
